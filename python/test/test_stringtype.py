@@ -20,10 +20,10 @@ v.reject(ValueError, a='\0\0hi', b='lo')
 
 # Unicode and UTF-8 strings
 if UnicodeType:
-    v.insert(a=unicode('hi there', 'utf-8'), b='hi')
-    v.insert(a=unicode('\xe2\x82\xac', 'utf-8'), b='hi')
-    v.insert(a=unicode('Sample\xe2\x82\xacTesting', 'utf-8'), b='')
-    v.reject(ValueError, a=unicode('Sample\0blahblah', 'utf-8'), b='yo')
+    v.insert(a=str('hi there', 'utf-8'), b='hi')
+    v.insert(a=str('\xe2\x82\xac', 'utf-8'), b='hi')
+    v.insert(a=str('Sample\xe2\x82\xacTesting', 'utf-8'), b='')
+    v.reject(ValueError, a=str('Sample\0blahblah', 'utf-8'), b='yo')
 
 # Non-ASCII 8-bit strings
 v.insert(a='', b='\xe2\x82\xacHi there')

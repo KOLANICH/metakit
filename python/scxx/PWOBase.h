@@ -86,30 +86,23 @@ class PWOBase {
     int delAttr(const PWOBase &nm) {
         return PyObject_DelAttr(_obj, nm);
     };
-    int cmp(const PWOBase &other)const {
-        int rslt = 0;
-        int rc = PyObject_Cmp(_obj, other, &rslt);
-        if (rc ==  - 1)
-          Fail(PyExc_TypeError, "cannot make the comparison");
-        return rslt;
-    };
     bool operator == (const PWOBase &other)const {
-        return cmp(other) == 0;
+        return PyObject_RichCompareBool(_obj, other, Py_EQ);
     };
     bool operator != (const PWOBase &other)const {
-        return cmp(other) != 0;
+        return PyObject_RichCompareBool(_obj, other, Py_NE);
     };
     bool operator > (const PWOBase &other)const {
-        return cmp(other) > 0;
+        return PyObject_RichCompareBool(_obj, other, Py_GT);
     };
     bool operator < (const PWOBase &other)const {
-        return cmp(other) < 0;
+        return PyObject_RichCompareBool(_obj, other, Py_LT);
     };
     bool operator >= (const PWOBase &other)const {
-        return cmp(other) >= 0;
+        return PyObject_RichCompareBool(_obj, other, Py_GE);
     };
     bool operator <= (const PWOBase &other)const {
-        return cmp(other) <= 0;
+        return PyObject_RichCompareBool(_obj, other, Py_LE);
     };
 
     PyObject *repr()const {

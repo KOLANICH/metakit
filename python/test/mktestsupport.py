@@ -8,7 +8,7 @@ import sys
 import string
 
 # for overflow testing
-MAXINT = sys.maxint
+MAXINT = sys.maxsize
 MININT = -MAXINT - 1
 MAXLONGLONG = 2**63 - 1
 MINLONGLONG = -2**63
@@ -25,10 +25,10 @@ except OverflowError: # long int too large to convert to int
 
 # Check for Unicode support (should fail in Python 1.5.2 or --disable-unicode, pass in 1.6)
 try:
-    UnicodeType = type(unicode(''))
+    UnicodeType = type(str(''))
 except NameError: # no Unicode support
     UnicodeType = None
-    unicode = None
+    str = None
     
 class Failure:
     """Keeps track of failures as they happen, but doesn't die on the first
@@ -39,12 +39,12 @@ class Failure:
         self.failure_count = 0
     
     def fail(self, op, args, err=None, expected=None, actual=None):
-        print 'FAIL:', op, args
-        print '     ',
-        if err is not None: print err,
-        if actual is not None: print 'got', actual, actual.__class__,
-        if expected is not None: print 'expected', expected,
-        print
+        print('FAIL:', op, args)
+        print('     ', end=' ')
+        if err is not None: print(err, end=' ')
+        if actual is not None: print('got', actual, actual.__class__, end=' ')
+        if expected is not None: print('expected', expected, end=' ')
+        print()
         self.failure_count = self.failure_count + 1
 
     def assess(self):
@@ -61,7 +61,7 @@ class ViewTester:
         self.arr = []
         self.failure = Failure()
         self.fail = self.failure.fail
-        self.columns = map(lambda c: string.split(c, ':')[0], string.split(description[string.index(description, '[') + 1:-1], ','))
+        self.columns = [string.split(c, ':')[0] for c in string.split(description[string.index(description, '[') + 1:-1], ',')]
 
     def dump_view(self):
         metakit.dump(self.v, 'VIEW CONTENTS:')
@@ -73,8 +73,8 @@ class ViewTester:
             self.fail('append', args, 'view length mismatch',
                       actual=vlen, expected=alen)
             try:
-                print 'ARRAY CONTENTS:'
-                for arow in self.arr: print arow
+                print('ARRAY CONTENTS:')
+                for arow in self.arr: print(arow)
                 self.dump_view()
             except: pass
             raise TestFailed('unexpected number of rows in view, aborting; run in verbose mode for details')
@@ -90,13 +90,13 @@ class ViewTester:
         try:
             self.v.append(args)
             self._append(args)
-        except Exception, e:
+        except Exception as e:
             self.fail('append', args, actual=e)
         try:
             self.checklen(args)
         except TestFailed:
             raise
-        except Exception, e:
+        except Exception as e:
             self.fail('append', args, 'spurious', actual=e)
 
     def reject(self, exception_class=Exception, **args):
@@ -104,18 +104,18 @@ class ViewTester:
             ix = self.v.append(args)
             self.fail('append', args, 'succeeded', expected=exception_class)
             self.v.delete(ix)
-        except Exception, e:
+        except Exception as e:
             if isinstance(e, exception_class):
                 if verbose:
-                    print 'PASS: rejected', args
-                    print '      as expected <%s> %s' % (e.__class__, e)
+                    print('PASS: rejected', args)
+                    print('      as expected <%s> %s' % (e.__class__, e))
             else:
                 self.fail('append', args, expected=exception_class, actual=e)
         try:
             self.checklen(args)
         except TestFailed:
             raise
-        except Exception, e:
+        except Exception as e:
             self.fail('append', args, 'spurious', actual=e)
 
     def finished(self):
@@ -125,13 +125,13 @@ class ViewTester:
         # compare view with array
         for arow, vrow in zip(self.arr, self.v):
             failed = False
-            for f in arow.keys():
+            for f in list(arow.keys()):
                 try:
                     vf = getattr(vrow, f)
                     af = arow[f]
                     # Fix up Unicode
                     if type(af) == UnicodeType:
-                        vf = unicode(vf, 'utf-8')
+                        vf = str(vf, 'utf-8')
                     if af == vf:
                         continue
                     # Perform the same implicit coercion as Mk4py should
@@ -146,12 +146,12 @@ class ViewTester:
                     # even with coercion
                     failed = True
                     self.fail('%s access' % f, arow, expected=af, actual=vf)
-                except Exception, e:
+                except Exception as e:
                     failed = True
                     self.fail('%s access' % f, arow, expected=arow[f], actual=e)
             if not failed:
                 if verbose:
-                    print 'PASS: retrieved', arow
+                    print('PASS: retrieved', arow)
 
         self.failure.assess()
 

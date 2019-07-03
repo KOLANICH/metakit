@@ -31,6 +31,7 @@
 
 import string, sys
 
+
 class MkMemoIO:
   def __init__(self, view, memo, row):
     self.view = view
@@ -39,51 +40,58 @@ class MkMemoIO:
     self.pos = 0
     self.closed = 0
     self.softspace = 0
+
   def close(self):
     if not self.closed:
       self.closed = 1
       del self.view, self.memo, self.row, self.pos
+
   def isatty(self):
     if self.closed:
-      raise ValueError, "I/O operation on closed file"
+      raise ValueError("I/O operation on closed file")
     return 0
-  def seek(self, pos, mode = 0):
+
+  def seek(self, pos, mode=0):
     if self.closed:
-      raise ValueError, "I/O operation on closed file"
+      raise ValueError("I/O operation on closed file")
     if mode == 1:
       pos = pos + self.pos
     elif mode == 2:
       pos = pos + self.view.itemsize(self.memo, self.row)
     self.pos = max(0, pos)
+
   def tell(self):
     if self.closed:
-      raise ValueError, "I/O operation on closed file"
+      raise ValueError("I/O operation on closed file")
     return self.pos
-  def read(self, n = -1):
+
+  def read(self, n=-1):
     if self.closed:
-      raise ValueError, "I/O operation on closed file"
+      raise ValueError("I/O operation on closed file")
     if n == 0:
       return ""
     r = self.view.access(self.memo, self.row, self.pos, n)
     self.pos = self.pos + len(r)
     return r
+
   def readline(self, length=None):
     if self.closed:
-      raise ValueError, "I/O operation on closed file"
+      raise ValueError("I/O operation on closed file")
     remain = self.view.itemsize(self.memo, self.row) - self.pos
     if length is None:
       length = remain
     length = min(length, remain)
     i = -1
     oldpos = self.pos
-    for o in xrange(0, length, 100):
-      i = string.find(self.read(100), '\n')
+    for o in range(0, length, 100):
+      i = string.find(self.read(100), "\n")
       if i >= 0:
         break
     self.pos = oldpos
     if i >= 0:
-      length = o+i+1
+      length = o + i + 1
     return self.read(length)
+
   def readlines(self):
     lines = []
     line = self.readline()
@@ -91,65 +99,73 @@ class MkMemoIO:
       lines.append(line)
       line = self.readline()
     return lines
+
   def write(self, s, resize=0):
     if self.closed:
-      raise ValueError, "I/O operation on closed file"
+      raise ValueError("I/O operation on closed file")
     self.view.modify(self.memo, self.row, s, self.pos, resize)
     self.pos = self.pos + len(s)
+
   def writelines(self, list):
-    for line in list: self.write(line)
+    for line in list:
+      self.write(line)
+
   def flush(self):
     if self.closed:
-      raise ValueError, "I/O operation on closed file"
+      raise ValueError("I/O operation on closed file")
+
   def getvalue(self):
     return self.view.access(self.memo, self.row, 0)
 
 
 # A little test suite
 
+
 def test():
   import Mk4py
-  mk=Mk4py
-  db=mk.storage()
-  vw=db.getas('v[m:M]')
+
+  mk = Mk4py
+  db = mk.storage()
+  vw = db.getas("v[m:M]")
   vw.append()
   if sys.argv[1:]:
-     file = sys.argv[1]
+    file = sys.argv[1]
   else:
-     file = '/etc/passwd'
-  lines = open(file, 'r').readlines()
-  text = open(file, 'r').read()
-  f = MkMemoIO(vw,vw.m,0)
+    file = __file__
+  lines = open(file, "r").readlines()
+  text = open(file, "r").read()
+  f = MkMemoIO(vw, vw.m, 0)
   for line in lines[:-2]:
     f.write(line)
   f.writelines(lines[-2:])
   if f.getvalue() != text:
-    raise RuntimeError, 'write failed'
+    raise RuntimeError("write failed")
   length = f.tell()
-  print 'File length =', length
+  print("File length =", length)
   f.seek(len(lines[0]))
   f.write(lines[1])
   f.seek(0)
-  print 'First line =', `f.readline()`
+  print("First line =", repr(f.readline()))
   here = f.tell()
   line = f.readline()
-  print 'Second line =', `line`
+  print("Second line =", repr(line))
   f.seek(-len(line), 1)
   line2 = f.read(len(line))
   if line != line2:
-    raise RuntimeError, 'bad result after seek back'
+    raise RuntimeError("bad result after seek back")
   f.seek(len(line2), 1)
   list = f.readlines()
   line = list[-1]
   f.seek(f.tell() - len(line))
   line2 = f.read()
   if line != line2:
-    raise RuntimeError, 'bad result after seek back from EOF'
-  print 'Read', len(list), 'more lines'
-  print 'File length =', f.tell()
+    raise RuntimeError("bad result after seek back from EOF")
+  print("Read", len(list), "more lines")
+  print("File length =", f.tell())
   if f.tell() != length:
-    raise RuntimeError, 'bad length'
+    raise RuntimeError("bad length")
   f.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
   test()

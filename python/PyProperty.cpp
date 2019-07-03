@@ -9,19 +9,8 @@
 #include <PWONumber.h>
 #include <PWOSequence.h>
 
-static PyMethodDef PropertyMethods[] =  {
-   {
-    0, 0, 0, 0
-  }
-};
-
 static void PyProperty_dealloc(PyProperty *o) {
   delete o;
-}
-
-static int PyProperty_print(PyProperty *o, FILE *f, int) {
-  fprintf(f, "Property('%c', '%s')", o->Type(), o->Name());
-  return 0;
 }
 
 static PyObject *PyProperty_getattr(PyProperty *o, char *nm) {
@@ -39,43 +28,68 @@ static PyObject *PyProperty_getattr(PyProperty *o, char *nm) {
       PWONumber rslt(o->GetId());
       return rslt.disOwn();
     }
-    return Py_FindMethod(PropertyMethods, o, nm);
+    return PyObject_GenericGetAttr(o, PyUnicode_FromString(nm));
   } catch (...) {
     return 0;
   }
 }
 
-static int PyProperty_compare(PyProperty *o, PyObject *ob) {
+static PyObject* PyProperty_richcompare(PyProperty *o, PyObject *ob, int op) {
   PyProperty *other;
   int myid, hisid;
   try {
     if (!PyProperty_Check(ob))
-      return  - 1;
+      return nullptr;
     other = (PyProperty*)ob;
     myid = o->GetId();
     hisid = other->GetId();
-    if (myid < hisid)
-      return  - 1;
-    else if (myid == hisid)
-      return 0;
-    return 1;
+    bool res;
+    switch(op){
+        case Py_LT:
+        res=myid < hisid;
+        case Py_LE:
+        res=myid <= hisid;
+        case Py_EQ:
+        res=myid == hisid;
+        case Py_NE:
+        res=myid != hisid;
+        case Py_GT:
+        res=myid > hisid;
+        case Py_GE:
+        res=myid >= hisid;
+    }
+    return res?Py_True:Py_False;
   } catch (...) {
-    return  - 1;
+    return nullptr;
   }
 }
 
 PyTypeObject PyPropertytype =  {
-  PyObject_HEAD_INIT(&PyType_Type)0, "PyProperty", sizeof(PyProperty), 0, 
-    (destructor)PyProperty_dealloc,  /*tp_dealloc*/
-  (printfunc)PyProperty_print,  /*tp_print*/
-  (getattrfunc)PyProperty_getattr,  /*tp_getattr*/
-  0,  /*tp_setattr*/
-  (cmpfunc)PyProperty_compare,  /*tp_compare*/
-  0,  /*tp_repr*/
-  0,  /*tp_as_number*/
-  0,  /*tp_as_sequence*/
-  0,  /*tp_as_mapping*/
+  .ob_base=PyVarObject_HEAD_INIT(&PyType_Type, 0)
+  .tp_name="PyProperty",
+  .tp_basicsize=sizeof(PyProperty),
+  .tp_itemsize=0,
+  .tp_dealloc=reinterpret_cast<destructor>(PyProperty_dealloc),
+  .tp_getattr=reinterpret_cast<getattrfunc>(PyProperty_getattr),
+  .tp_setattr=nullptr,
+  .tp_as_async=nullptr,
+  .tp_repr=nullptr,
+  .tp_as_number=nullptr,
+  .tp_as_sequence=nullptr,
+  .tp_as_mapping=nullptr,
+  .tp_hash=nullptr,
+  .tp_call=nullptr,
+  .tp_str=nullptr,
+  .tp_getattro=nullptr,
+  .tp_setattro=nullptr,
+  .tp_as_buffer=nullptr,
+  .tp_flags=0,
+  .tp_doc=nullptr,
+  .tp_traverse=nullptr,
+  .tp_clear=nullptr,
+  .tp_richcompare=reinterpret_cast<richcmpfunc>(PyProperty_richcompare),
 };
+
 
 PyObject *PyProperty_new(PyObject *o, PyObject *_args) {
   try {

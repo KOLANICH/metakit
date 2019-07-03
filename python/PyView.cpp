@@ -283,7 +283,7 @@ static PyObject *PyView_join(PyView *o, PyObject *_args, PyObject *_kwargs) {
     PyView *other = (PyView*)(PyObject*)args[0];
     bool outer = false;
     int last = args.len();
-    if (PyInt_Check((PyObject*)args[last - 1])) {
+    if (PyLong_Check((PyObject*)args[last - 1])) {
       PWONumber flag(args[--last]);
       if ((int)flag > 0)
         outer = true;
@@ -520,7 +520,7 @@ static PyObject *PyView_indexed(PyView *o, PyObject *_args) {
     PyView *other = (PyView*)(PyObject*)args[0];
     bool unique = false;
     int last = args.len();
-    if (PyInt_Check((PyObject*)args[last - 1])) {
+    if (PyLong_Check((PyObject*)args[last - 1])) {
       PWONumber flag(args[--last]); //XXX kwargs?
       if ((int)flag > 0)
         unique = true;
@@ -616,21 +616,21 @@ static PyObject *PyView_access(PyView *o, PyObject *_args) {
     c4_BytesProp &prop = *(c4_BytesProp*)(c4_Property*)(PyProperty*)(PyObject*)
       args[0];
 
-    int index = PyInt_AsLong(args[1]);
+    int index = PyLong_AsLong(args[1]);
     if (index < 0 || index >= o->GetSize())
       Fail(PyExc_IndexError, "Index out of range");
 
     c4_RowRef row = o->GetAt(index);
 
-    long offset = PyInt_AsLong(args[2]);
-    int length = args.len() == 3 ? 0 : PyInt_AsLong(args[3]);
+    long offset = PyLong_AsLong(args[2]);
+    int length = args.len() == 3 ? 0 : PyLong_AsLong(args[3]);
     if (length <= 0) {
       length = prop(row).GetSize() - offset;
       if (length < 0)
         length = 0;
     }
 
-    PyObject *buffer = PyString_FromStringAndSize(0, length);
+    PyObject *buffer = PyUnicode_FromStringAndSize(0, length);
     int o = 0;
 
     while (o < length) {
@@ -638,12 +638,12 @@ static PyObject *PyView_access(PyView *o, PyObject *_args) {
       int n = buf.Size();
       if (n == 0)
         break;
-      memcpy(PyString_AS_STRING(buffer) + o, buf.Contents(), n);
+      memcpy(PyUnicode_AS_UNICODE(buffer) + o, buf.Contents(), n);
       o += n;
     }
 
     if (o < length)
-      _PyString_Resize(&buffer, o);
+      PyUnicode_Resize(&buffer, o);
 
     return buffer;
   } catch (...) {
@@ -1148,7 +1148,9 @@ static PyObject *PyView_getitem(PyObject *_o, Py_ssize_t n) {
   }
 }
 
-static PyObject *PyView_getslice(PyObject *_o, Py_ssize_t s, Py_ssize_t e) {
+static PyObject *PyView_getslice(PyObject *_o, PyObject *slice) {
+  Py_ssize_t s=PyLong_AsSsize_t(PyObject_GetAttrString(slice, "start"));
+  Py_ssize_t e=PyLong_AsSsize_t(PyObject_GetAttrString(slice, "stop"));
   PyView *o = (PyView*)_o;
 
   try {
@@ -1177,8 +1179,9 @@ static int PyView_setitem(PyObject *_o, Py_ssize_t n, PyObject *v) {
   }
 }
 
-static int PyView_setslice(PyObject *_o, Py_ssize_t s, Py_ssize_t e, PyObject
-  *v) {
+static int PyView_setslice(PyObject *_o, PyObject *_slice, PyObject  *v) {
+  Py_ssize_t s=PyLong_AsSsize_t(PyObject_GetAttrString(_slice, "start"));
+  Py_ssize_t e=PyLong_AsSsize_t(PyObject_GetAttrString(_slice, "stop"));
   PyView *o = (PyView*)_o;
 
   try {
@@ -1195,33 +1198,34 @@ static int PyView_setslice(PyObject *_o, Py_ssize_t s, Py_ssize_t e, PyObject
 }
 
 static PySequenceMethods ViewAsSeq =  {
-  PyView_length,  //sq_length
-  PyView_concat,  //sq_concat
-  PyView_repeat,  //sq_repeat
-  PyView_getitem,  //sq_item
-  PyView_getslice,  //sq_slice
-  PyView_setitem,  //sq_ass_item
-  PyView_setslice,  //sq_ass_slice
+  .sq_length=PyView_length,
+  .sq_concat=PyView_concat,
+  .sq_repeat=PyView_repeat,
+  .sq_item=PyView_getitem,
+  .sq_ass_item=PyView_setitem,
 };
 
+static PyMappingMethods ViewAsMap =  {
+  .mp_subscript=PyView_getslice,
+  .mp_ass_subscript=PyView_setslice
+};
+
+
 static PySequenceMethods ViewerAsSeq =  {
-  PyView_length,  //sq_length
-  PyView_concat,  //sq_concat
-  PyView_repeat,  //sq_repeat
-  PyView_getitem,  //sq_item
-  PyView_getslice,  //sq_slice
-  0,  //sq_ass_item
-  0,  //sq_ass_slice
+  .sq_length=PyView_length,
+  .sq_concat=PyView_concat,
+  .sq_repeat=PyView_repeat,
+  .sq_item=PyView_getitem,
+  .sq_ass_item=nullptr,
+};
+
+static PyMappingMethods ViewerAsMap =  {
+  .mp_subscript=PyView_getslice
 };
 
 static void PyView_dealloc(PyView *o) {
   //o->~PyView();
   delete o;
-}
-
-static int PyView_print(PyView *o, FILE *f, int) {
-  fprintf(f, "<PyView object at %p>", (void*)o);
-  return 0;
 }
 
 static int PyViewer_print(PyView *o, FILE *f, int) {
@@ -1237,7 +1241,7 @@ static int PyROViewer_print(PyView *o, FILE *f, int) {
 static PyObject *PyView_getattr(PyView *o, char *nm) {
   PyObject *rslt;
   try {
-    rslt = Py_FindMethod(ViewMethods, o, nm);
+    rslt = PyObject_GenericGetAttr(o, PyUnicode_FromString(nm));
     if (rslt)
       return rslt;
     PyErr_Clear();
@@ -1254,7 +1258,7 @@ static PyObject *PyView_getattr(PyView *o, char *nm) {
 static PyObject *PyViewer_getattr(PyView *o, char *nm) {
   PyObject *rslt;
   try {
-    rslt = Py_FindMethod(ViewerMethods, o, nm);
+    rslt = PyObject_GenericGetAttr(o, PyUnicode_FromString(nm));
     if (rslt)
       return rslt;
     PyErr_Clear();
@@ -1270,40 +1274,48 @@ static PyObject *PyViewer_getattr(PyView *o, char *nm) {
 
 
 PyTypeObject PyViewtype =  {
-  PyObject_HEAD_INIT(&PyType_Type)0, "PyView", sizeof(PyView), 0, (destructor)
-    PyView_dealloc,  /*tp_dealloc*/
-  (printfunc)PyView_print,  /*tp_print*/
-  (getattrfunc)PyView_getattr,  /*tp_getattr*/
-  0,  /*tp_setattr*/
-  (cmpfunc)0,  /*tp_compare*/
-  (reprfunc)0,  /*tp_repr*/
-  0,  /*tp_as_number*/
-   &ViewAsSeq,  /*tp_as_sequence*/
-  0,  /*tp_as_mapping*/
+  .ob_base=PyVarObject_HEAD_INIT(&PyType_Type, 0)
+  .tp_name="PyView",
+  .tp_basicsize=sizeof(PyView),
+  .tp_itemsize=0,
+  .tp_dealloc=reinterpret_cast<destructor>(PyView_dealloc),
+  .tp_getattr=reinterpret_cast<getattrfunc>(PyView_getattr),
+  .tp_setattr=nullptr,
+  .tp_as_async=nullptr,
+  .tp_repr=nullptr,
+  .tp_as_number=nullptr,
+  .tp_as_sequence=&ViewAsSeq,
+  .tp_as_mapping=&ViewAsMap,
+  .tp_methods=ViewMethods
 };
 PyTypeObject PyViewertype =  {
-  PyObject_HEAD_INIT(&PyType_Type)0, "PyViewer", sizeof(PyView), 0, (destructor)
-    PyView_dealloc,  /*tp_dealloc*/
-  (printfunc)PyViewer_print,  /*tp_print*/
-  (getattrfunc)PyViewer_getattr,  /*tp_getattr*/
-  0,  /*tp_setattr*/
-  (cmpfunc)0,  /*tp_compare*/
-  (reprfunc)0,  /*tp_repr*/
-  0,  /*tp_as_number*/
-   &ViewerAsSeq,  /*tp_as_sequence*/
-  0,  /*tp_as_mapping*/
+  .ob_base=PyVarObject_HEAD_INIT(&PyType_Type, 0)
+  .tp_name="PyViewer",
+  .tp_basicsize=sizeof(PyView),
+  .tp_itemsize=0,
+  .tp_dealloc=reinterpret_cast<destructor>(PyView_dealloc),
+  .tp_getattr=reinterpret_cast<getattrfunc>(PyViewer_getattr),
+  .tp_setattr=nullptr,
+  .tp_as_async=nullptr,
+  .tp_repr=nullptr,
+  .tp_as_number=nullptr,
+  .tp_as_sequence=&ViewerAsSeq,
+  .tp_as_mapping=&ViewerAsMap,
+  .tp_methods=ViewerMethods
 };
 PyTypeObject PyROViewertype =  {
-  PyObject_HEAD_INIT(&PyType_Type)0, "PyROViewer", sizeof(PyView), 0, 
-    (destructor)PyView_dealloc,  /*tp_dealloc*/
-  (printfunc)PyROViewer_print,  /*tp_print*/
-  (getattrfunc)PyViewer_getattr,  /*tp_getattr*/
-  0,  /*tp_setattr*/
-  (cmpfunc)0,  /*tp_compare*/
-  (reprfunc)0,  /*tp_repr*/
-  0,  /*tp_as_number*/
-   &ViewerAsSeq,  /*tp_as_sequence*/
-  0,  /*tp_as_mapping*/
+  .ob_base=PyVarObject_HEAD_INIT(&PyType_Type, 0)
+  .tp_name="PyROViewer",
+  .tp_basicsize=sizeof(PyView),
+  .tp_itemsize=0,
+  .tp_dealloc=reinterpret_cast<destructor>(PyView_dealloc),
+  .tp_getattr=reinterpret_cast<getattrfunc>(PyViewer_getattr),
+  .tp_setattr=nullptr,
+  .tp_as_async=nullptr,
+  .tp_repr=nullptr,
+  .tp_as_number=nullptr,
+  .tp_as_sequence=&ViewerAsSeq,
+  .tp_as_mapping=nullptr,
 };
 int PyView::computeState(int targettype) {
   int newtype = _state | targettype;
@@ -1371,9 +1383,6 @@ void PyView::makeRow(c4_Row &tmp, PyObject *o, bool useDefaults) {
 
     if (!o) {
       pyobject_type = none;
-    } else if (PyInstance_Check(o)) {
-      /* instances of new-style classes (Python 2.2+) do not return true */
-      pyobject_type = instance;
     } else if (PySequence_Check(o)) {
       int seq_length = PyObject_Length(o);
       if (seq_length > n) {
@@ -1427,12 +1436,16 @@ void PyView::makeRow(c4_Row &tmp, PyObject *o, bool useDefaults) {
 }
 
 void PyView::insertAt(int i, PyObject *o) {
-  if (PyGenericView_Check(o))
-    InsertAt(i, *(PyView*)o);
-  else {
-    c4_Row temp;
-    makeRow(temp, o);
-    InsertAt(i, temp);
+  if(o){
+    if (PyGenericView_Check(o))
+      InsertAt(i, *(PyView*)o);
+    else {
+      c4_Row temp;
+      makeRow(temp, o);
+      InsertAt(i, temp);
+    }
+  }else{
+    Fail(PyExc_ValueError, "Nothing to insert!");
   }
 }
 

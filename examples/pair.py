@@ -18,7 +18,7 @@ db = metakit.storage()
 v1 = db.getas("one[s:S]")
 v2 = db.getas("two[i:I]")
 
-for v in ['zero','one','two','three','four','five']:
+for v in ["zero", "one", "two", "three", "four", "five"]:
   v1.append(s=v)
 for v in range(6):
   v2.append(i=v)

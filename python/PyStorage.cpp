@@ -42,17 +42,20 @@ class c4_PyStream: public c4_Stream {
 
     virtual int Read(void *buffer_, int length_);
     virtual bool Write(const void *buffer_, int length_);
+    virtual ~c4_PyStream();
 };
 
 c4_PyStream::c4_PyStream(PyObject *stream_): _stream(stream_){}
 
 int c4_PyStream::Read(void *buffer_, int length_) {
   PyObject *o = PyObject_CallMethod(_stream, "read", "i", length_);
-  int n = o != 0 ? PyString_Size(o): 0;
+  int n = o != 0 ? PyUnicode_GET_LENGTH(o): 0;
   if (n > 0)
-    memcpy(buffer_, PyString_AsString(o), n);
+    memcpy(buffer_, PyUnicode_AsUTF8String(o), n);
   return n;
 }
+
+c4_PyStream::~c4_PyStream(){}
 
 bool c4_PyStream::Write(const void *buffer_, int length_) {
   PyObject_CallMethod(_stream, "write", "s#", buffer_, length_);
@@ -330,26 +333,24 @@ static void PyStorage_dealloc(PyStorage *o) {
   delete o;
 }
 
-static int PyStorage_print(PyStorage *o, FILE *f, int) {
-  fprintf(f, "<PyStorage object at %lx>", (long)o);
-  return 0;
-}
-
 static PyObject *PyStorage_getattr(PyStorage *o, char *nm) {
-  return Py_FindMethod(StorageMethods, o, nm);
+  return PyObject_GenericGetAttr(o, PyUnicode_FromString(nm));
 }
 
 PyTypeObject PyStoragetype =  {
-  PyObject_HEAD_INIT(&PyType_Type)0, "PyStorage", sizeof(PyStorage), 0, 
-    (destructor)PyStorage_dealloc,  /*tp_dealloc*/
-  (printfunc)PyStorage_print,  /*tp_print*/
-  (getattrfunc)PyStorage_getattr,  /*tp_getattr*/
-  0,  /*tp_setattr*/
-  (cmpfunc)0,  /*tp_compare*/
-  (reprfunc)0,  /*tp_repr*/
-  0,  /*tp_as_number*/
-  0,  /*tp_as_sequence*/
-  0,  /*tp_as_mapping*/
+  .ob_base=PyVarObject_HEAD_INIT(&PyType_Type, 0)
+  .tp_name="PyStorage",
+  .tp_basicsize=sizeof(PyStorage),
+  .tp_itemsize=0,
+  .tp_dealloc=reinterpret_cast<destructor>(PyStorage_dealloc),
+  .tp_getattr=reinterpret_cast<getattrfunc>(PyStorage_getattr),
+  .tp_setattr=nullptr,
+  .tp_as_async=nullptr,
+  .tp_repr=nullptr,
+  .tp_as_number=nullptr,
+  .tp_as_sequence=nullptr,
+  .tp_as_mapping=nullptr,
+  .tp_methods=StorageMethods,
 };
 
 static char *storage__doc = 
@@ -362,16 +363,6 @@ static PyObject *PyStorage_new(PyObject *o, PyObject *_args) {
     switch (args.len()) {
       case 0:
         ps = new PyStorage;
-        break;
-      case 1:
-        if (!PyFile_Check((PyObject*)args[0])) {
-          if (PyString_Check((PyObject*)args[0]))
-            Fail(PyExc_TypeError, "rw parameter missing");
-          else
-            Fail(PyExc_TypeError, "argument not an open file");
-          break;
-        }
-        ps = new PyStorage(*new c4_FileStrategy(PyFile_AsFile(args[0])), true);
         break;
       case 4:
          { // Rrrrrr...
@@ -406,7 +397,7 @@ static PyObject *PyStorage_new(PyObject *o, PyObject *_args) {
           break;
         }
       default:
-        Fail(PyExc_ValueError, "storage() takes at most 4 arguments");
+        Fail(PyExc_ValueError, "storage() takes at either 2 or 4 arguments");
     }
     return ps;
   } catch (...) {
@@ -451,11 +442,6 @@ bool PyViewer::GetItem(int row_, int col_, c4_Bytes &buf_) {
     return prop(_tempRow).GetData(buf_);
   }
   PyObject *item = _data[row_];
-  if (PyInstance_Check(item)) {
-    PyObject *attr = PyObject_GetAttrString(item, (char*)prop.Name());
-    PyRowRef::setFromPython(_tempRow, prop, attr);
-    return prop(_tempRow).GetData(buf_);
-  }
   if (PyDict_Check(item)) {
     PyObject *attr = PyDict_GetItemString(item, (char*)prop.Name());
     PyRowRef::setFromPython(_tempRow, prop, attr);
@@ -465,6 +451,9 @@ bool PyViewer::GetItem(int row_, int col_, c4_Bytes &buf_) {
     PyRowRef::setFromPython(_tempRow, prop, _data[row_]);
     return prop(_tempRow).GetData(buf_);
   }
+  PyObject *attr = PyObject_GetAttrString(item, (char*)prop.Name());
+  PyRowRef::setFromPython(_tempRow, prop, attr);
+  return prop(_tempRow).GetData(buf_);
   Fail(PyExc_ValueError, "Object has no usable attributes");
   return false;
   // create a row with just this single property value
@@ -537,14 +526,26 @@ static PyMethodDef Mk4Methods[] =  {
   }
 };
 
-extern "C"__declspec(dllexport)
-void initMk4py() {
-  PyObject *m = Py_InitModule4("Mk4py", Mk4Methods, mk4py_module_documentation,
-    0, PYTHON_API_VERSION);
-  PyObject_SetAttrString(m, "version", PyString_FromString("2.4.9.7"));
+static PyModuleDef moduleSpec = {
+	PyModuleDef_HEAD_INIT,
+	/*.m_name=*/"Mk4py",
+	/*.m_doc=*/mk4py_module_documentation,
+	/*.m_size=*/-1,
+	/*.m_methods=*/Mk4Methods,
+	/*.m_reload=*/nullptr,
+	/*.m_traverse=*/nullptr,
+	/*.m_clear=*/nullptr,
+	/*.m_free=*/nullptr,
+};
+
+extern "C" __declspec(dllexport)
+PyMODINIT_FUNC PyInit_Mk4py() {
+  PyObject *m = PyModule_Create(&moduleSpec);
+  PyObject_SetAttrString(m, "version", PyUnicode_FromString("2.4.9.7"));
   PyObject_SetAttrString(m, "ViewType", (PyObject*) &PyViewtype);
   PyObject_SetAttrString(m, "ViewerType", (PyObject*) &PyViewertype);
   PyObject_SetAttrString(m, "ROViewerType", (PyObject*) &PyROViewertype);
   PyObject_SetAttrString(m, "RowRefType", (PyObject*) &PyRowReftype);
   PyObject_SetAttrString(m, "RORowRefType", (PyObject*) &PyRORowReftype);
+  return m;
 }

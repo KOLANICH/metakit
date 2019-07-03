@@ -16,13 +16,13 @@ class PWONumber: public PWOBase {
   public:
     PWONumber(): PWOBase(){}
     ;
-    PWONumber(int i): PWOBase(PyInt_FromLong(i)) {
+    PWONumber(int i): PWOBase(PyLong_FromLong(i)) {
         LoseRef(_obj);
     }
-    PWONumber(long i): PWOBase(PyInt_FromLong(i)) {
+    PWONumber(long i): PWOBase(PyLong_FromLong(i)) {
         LoseRef(_obj);
     }
-    PWONumber(unsigned long i): PWOBase(PyLong_FromUnsignedLong(i)) {
+    PWONumber(unsigned long i): PWOBase(PyLong_FromUnsignedLongLong(i)) {
         LoseRef(_obj);
     }
 #ifdef HAVE_LONG_LONG
@@ -81,7 +81,7 @@ class PWONumber: public PWOBase {
     //PyNumber_Coerce
     //PyNumber_Divide
     PWONumber operator / (const PWONumber &rhs)const {
-        PyObject *rslt = PyNumber_Divide(_obj, rhs);
+        PyObject *rslt = PyNumber_TrueDivide(_obj, rhs);
         if (rslt == NULL)
           Fail(PyExc_TypeError, "Improper rhs for /");
         return LoseRef(rslt);
@@ -107,12 +107,12 @@ class PWONumber: public PWOBase {
     double rslt = (double) *this;
     return (float) rslt;
     }; */
-    //PyNumber_Int
+    //PyNumber_Long
     operator long()const {
-        PyObject *Int = PyNumber_Int(_obj);
+        PyObject *Int = PyNumber_Long(_obj);
         if (Int == NULL)
           Fail(PyExc_TypeError, "can't convert to int");
-        long r = PyInt_AsLong(_obj);
+        long r = PyLong_AsLong(_obj);
         if (r ==  - 1)
           FailIfPyErr();
         return r;

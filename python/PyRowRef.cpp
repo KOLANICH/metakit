@@ -25,16 +25,6 @@ static void PyRowRef_dealloc(PyRowRef *o) {
   delete o;
 }
 
-static int PyRowRef_print(PyRowRef *o, FILE *f, int) {
-  fprintf(f, "<PyRowRef object at %p>", (void*)o);
-  return 0;
-}
-
-static int PyRORowRef_print(PyRowRef *o, FILE *f, int) {
-  fprintf(f, "<PyRORowRef object at %p>", (void*)o);
-  return 0;
-}
-
 static PyObject *PyRowRef_getattr(PyRowRef *o, char *nm) {
   try {
     if (nm[0] == '_' && nm[1] == '_') {
@@ -49,7 +39,7 @@ static PyObject *PyRowRef_getattr(PyRowRef *o, char *nm) {
       } else if (strcmp(nm, "__view__") == 0) {
         return new PyView(o->Container());
       } else if (strcmp(nm, "__index__") == 0) {
-        return PyInt_FromLong((&(*o))._index);
+        return PyLong_FromLong((&(*o))._index);
       }
     }
 
@@ -57,7 +47,7 @@ static PyObject *PyRowRef_getattr(PyRowRef *o, char *nm) {
     if (attr)
       return attr;
     PyErr_Clear();
-    return Py_FindMethod(RowRefMethods, (PyObject*)o, nm);
+    return PyObject_GenericGetAttr(o, PyUnicode_FromString(nm));
   } catch (...) {
     return NULL;
   }
@@ -82,28 +72,34 @@ static int PyRowRef_setattr(PyRowRef *o, char *nm, PyObject *v) {
 }
 
 PyTypeObject PyRowReftype =  {
-  PyObject_HEAD_INIT(&PyType_Type)0, "PyRowRef", sizeof(PyRowRef), 0, 
-    (destructor)PyRowRef_dealloc,  /*tp_dealloc*/
-  (printfunc)PyRowRef_print,  /*tp_print*/
-  (getattrfunc)PyRowRef_getattr,  /*tp_getattr*/
-  (setattrfunc)PyRowRef_setattr,  /*tp_setattr*/
-  (cmpfunc)0,  /*tp_compare*/
-  (reprfunc)0,  /*tp_repr*/
-  0,  /*tp_as_number*/
-  0,  /*tp_as_sequence*/
-  0,  /*tp_as_mapping*/
+  .ob_base=PyVarObject_HEAD_INIT(&PyType_Type, 0)
+  .tp_name="PyRowRef",
+  .tp_basicsize=sizeof(PyRowRef),
+  .tp_itemsize=0,
+  .tp_dealloc=reinterpret_cast<destructor>(PyRowRef_dealloc),
+  .tp_getattr=reinterpret_cast<getattrfunc>(PyRowRef_getattr),
+  .tp_setattr=reinterpret_cast<setattrfunc>(PyRowRef_setattr),
+  .tp_as_async=nullptr,
+  .tp_repr=nullptr,
+  .tp_as_number=nullptr,
+  .tp_as_sequence=nullptr,
+  .tp_as_mapping=nullptr,
+  .tp_methods=RowRefMethods
 };
+
 PyTypeObject PyRORowReftype =  {
-  PyObject_HEAD_INIT(&PyType_Type)0, "PyRORowRef", sizeof(PyRowRef), 0, 
-    (destructor)PyRowRef_dealloc,  /*tp_dealloc*/
-  (printfunc)PyRORowRef_print,  /*tp_print*/
-  (getattrfunc)PyRowRef_getattr,  /*tp_getattr*/
-  (setattrfunc)0,  /*tp_setattr*/
-  (cmpfunc)0,  /*tp_compare*/
-  (reprfunc)0,  /*tp_repr*/
-  0,  /*tp_as_number*/
-  0,  /*tp_as_sequence*/
-  0,  /*tp_as_mapping*/
+  .ob_base=PyVarObject_HEAD_INIT(&PyType_Type, 0)
+  .tp_name="PyRORowRef",
+  .tp_basicsize=sizeof(PyRowRef),
+  .tp_itemsize=0, 
+  .tp_dealloc=reinterpret_cast<destructor>(PyRowRef_dealloc),
+  .tp_getattr=reinterpret_cast<getattrfunc>(PyRowRef_getattr),
+  .tp_setattr=nullptr,
+  .tp_as_async=nullptr,
+  .tp_repr=nullptr,
+  .tp_as_number=nullptr,
+  .tp_as_sequence=nullptr,
+  .tp_as_mapping=nullptr,
 };
 
 
@@ -120,8 +116,8 @@ void PyRowRef::setFromPython(const c4_RowRef &row, const c4_Property &prop,
   PyObject *attr) {
   switch (prop.Type()) {
     case 'I':
-      if (PyInt_Check(attr)) {
-        long number = PyInt_AsLong(attr);
+      if (PyLong_Check(attr)) {
+        long number = PyLong_AsLong(attr);
         if (number ==  - 1 && PyErr_Occurred() != NULL)
           Fail(PyExc_ValueError, "int too large to convert to C long");
         ((const c4_IntProp &)prop)(row) = number;
@@ -140,8 +136,8 @@ void PyRowRef::setFromPython(const c4_RowRef &row, const c4_Property &prop,
             ;
         ((const c4_LongProp &)prop)(row) = number;
       }
-       else if (PyInt_Check(attr)) {
-        long number = PyInt_AsLong(attr);
+       else if (PyLong_Check(attr)) {
+        long number = PyLong_AsLong(attr);
         if (number ==  - 1 && PyErr_Occurred() != NULL)
           Fail(PyExc_ValueError, "int too large to convert to C long");
         ((const c4_LongProp &)prop)(row) = number;
@@ -209,8 +205,8 @@ void PyRowRef::setFromPython(const c4_RowRef &row, const c4_Property &prop,
       break;
     case 'B':
     case 'M':
-      if (PyString_Check(attr)) {
-        c4_Bytes temp(PyString_AS_STRING(attr), PyString_GET_SIZE(attr), false);
+      if (PyUnicode_Check(attr)) {
+        c4_Bytes temp(PyUnicode_AS_UNICODE(attr), PyUnicode_GET_SIZE(attr), false);
         prop(row).SetData(temp);
       }
        else if (attr != Py_None)

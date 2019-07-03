@@ -133,10 +133,10 @@ class PWOString: public PWOSequence {
   public:
     PWOString(): PWOSequence(){}
     ;
-    PWOString(const char *s): PWOSequence(PyString_FromString((char*)s)) {
+    PWOString(const char *s): PWOSequence(PyUnicode_FromString((char*)s)) {
         LoseRef(_obj);
     }
-    PWOString(const char *s, int sz): PWOSequence(PyString_FromStringAndSize(
+    PWOString(const char *s, int sz): PWOSequence(PyUnicode_FromStringAndSize(
       (char*)s, sz)) {
         LoseRef(_obj);
     }
@@ -161,19 +161,19 @@ class PWOString: public PWOSequence {
         return  *this;
     };
     virtual void _violentTypeCheck() {
-        if (!PyString_Check(_obj)) {
+        if (!PyUnicode_Check(_obj)) {
             GrabRef(0);
             Fail(PyExc_TypeError, "not a Python string");
         }
     };
     operator const char *()const {
-        return PyString_AsString(_obj);
+        return PyUnicode_AsUTF8(_obj);
     };
     int size()const {
-        return PyString_GET_SIZE(_obj);
+        return PyUnicode_GET_SIZE(_obj);
     };
     static PWOString format(const PWOString &fmt, PWOTuple &args) {
-        PyObject *rslt = PyString_Format(fmt, args);
+        PyObject *rslt = PyUnicode_Format(fmt, args);
         if (rslt == NULL)
           Fail(PyExc_RuntimeError, "string format failed");
         return LoseRef(rslt);

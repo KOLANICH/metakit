@@ -21,8 +21,8 @@ if int_long_integrated:
     v.reject(OverflowError, intf=MINLONGLONG, longf=0)
 
 # long field
-v.insert(intf=0, longf=-1L)
-v.insert(intf=0, longf=5L)
+v.insert(intf=0, longf=-1)
+v.insert(intf=0, longf=5)
 v.insert(intf=0, longf=MAXLONGLONG)
 v.insert(intf=0, longf=MINLONGLONG)
 v.reject(ValueError, intf=0, longf=MAXULONGLONG)
@@ -35,8 +35,8 @@ v.insert(intf=1, longf=2)
 v.insert(intf=-5, longf=-2**30)
 
 # implicit conversion to int
-v.insert(intf=14L, longf=0)
-v.insert(intf=-30L, longf=0)
+v.insert(intf=14, longf=0)
+v.insert(intf=-30, longf=0)
 v.insert(intf=45.0, longf=0)
 v.insert(intf=21.4, longf=0)
 v.reject(int_long_error, intf=float(MAXINT + 1), longf=0)

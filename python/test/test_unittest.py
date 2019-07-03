@@ -530,24 +530,24 @@ class RowRefTestCase(RORowRefTestCase):
         self.assertRaises(TypeError, setattr, (r, 'i', '1'))
             
         #        L - int, long, castable to long
-        r.l = 3L
+        r.l = 3
         self.assertEqual(r.l, 3)
-        self.assertEqual(type(r.l), long)
+        self.assertEqual(type(r.l), int)
         try:
             r.l = True
         except NameError:
             pass
         else:
             self.assertEqual(r.l, 1)
-            self.assertEqual(type(r.l), long)
+            self.assertEqual(type(r.l), int)
         r.l = 8.0
         self.assertEqual(r.l, 8)
-        self.assertEqual(type(r.l), long)
+        self.assertEqual(type(r.l), int)
         r.l = 8.9
         self.assertEqual(r.l, 8)
-        self.assertEqual(type(r.l), long)
+        self.assertEqual(type(r.l), int)
         try:
-            bignum = sys.maxint + 1
+            bignum = sys.maxsize + 1
         except OverflowError:
             pass
         else:

@@ -10,8 +10,8 @@ MK_INSTALL="install-mk"
 
 AC_ARG_WITH(python,
 [  --with-python=PATH      build the Mk4py extension for Python with headers in
-                          `PATH/include/python2.5'; install the Mk4py modules in
-                          `PATH/lib/python2.5/site-packages'.  If PATH is of the
+                          `PATH/include/python3.7'; install the Mk4py modules in
+                          `PATH/lib/python3.7/site-packages'.  If PATH is of the
                           form `HEADER,LIB', search for header files in HEADER,
                           and install Mk4py in LIB.  If you omit the `=PATH'
                           part, use the standard includedir and libdir.],
@@ -20,8 +20,8 @@ AC_ARG_WITH(python,
 AC_MSG_CHECKING([for Python configuration])
 case "$with_python" in
   "yes" )
-	PY_INCLUDE_DIR="${prefix}/include/python2.5"
-	PY_LIB_DIR="${prefix}/lib/python2.5/site-packages"
+	PY_INCLUDE_DIR="${prefix}/include/python3.7"
+	PY_LIB_DIR="${prefix}/lib/python3.7/site-packages"
   ;;
   "no" )
 	PY_INCLUDE_DIR="# no Python headers"
@@ -31,8 +31,8 @@ case "$with_python" in
 	PY_LIB_DIR="`echo $with_python | sed -e 's/^.*,//'`"
   ;;
   * )
-    PY_INCLUDE_DIR="$with_python/include/python2.5"
-    PY_LIB_DIR="$with_python/lib/python2.5/site-packages"
+    PY_INCLUDE_DIR="$with_python/include/python3.7"
+    PY_LIB_DIR="$with_python/lib/python3.7/site-packages"
   ;;
 esac
 

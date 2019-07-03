@@ -57,59 +57,70 @@ a hash is in use, unless you clear map and redefine the hash layer.
 Metakit 2.01 only supports find_raw (linear scanning).
 """
 
-import sys; sys.path.append('../builds'); import Mk4py; mk = Mk4py
-print sys.argv[0], '-', 'Mk4py', mk.version, '-', sys.platform
+import sys
+
+sys.path.append("../builds")
+import Mk4py
+
+mk = Mk4py
+print(sys.argv[0], "-", "Mk4py", mk.version, "-", sys.platform)
 
 from time import time
 
 db = mk.storage()
-vw = db.getas('vw[p1:I,p2:I]')
-map = db.getas('map[_H:I,_R:I]')
+vw = db.getas("vw[p1:I,p2:I]")
+map = db.getas("map[_H:I,_R:I]")
+
 
 def filldb(n=1000):
   del vw[:]
-  t0 = time();
-  for i in xrange(n):
-    vw.append(p1=i, p2=i+i)
-  print 'filldb %d rows: %g sec' % (n, time() - t0)
+  t0 = time()
+  for i in range(n):
+    vw.append(p1=i, p2=i + i)
+  print("filldb %d rows: %g sec" % (n, time() - t0))
+
 
 # this find will do a linear scan
-def find_raw(k,n=1000):
-  t0 = time();
-  for i in xrange(n):
+def find_raw(k, n=1000):
+  t0 = time()
+  for i in range(n):
     r = vw.find(p1=k)
-  print ' find_raw %d times, key %d -> %d: %g sec' % (n, k, r, time() - t0)
+  print(" find_raw %d times, key %d -> %d: %g sec" % (n, k, r, time() - t0))
+
 
 # this find switches to binary search, because it knows the view is ordered
-def find_ord(k,n=1000):
-  t0 = time();
+def find_ord(k, n=1000):
+  t0 = time()
   vwo = vw.ordered()
-  for i in xrange(n):
+  for i in range(n):
     r = vwo.find(p1=k)
-  print ' find_ord %d times, key %d -> %d: %g sec' % (n, k, r, time() - t0)
+  print(" find_ord %d times, key %d -> %d: %g sec" % (n, k, r, time() - t0))
+
 
 # setting up a hash view initializes it, since the map size is still zero
 def hash_ini(n=1000):
-  t0 = time();
-  for i in xrange(n):
+  t0 = time()
+  for i in range(n):
     del map[:]
     vwh = vw.hash(map)
-  print ' hash_ini %d times, size %d: %g sec' % (n, len(map), time() - t0)
- 
+  print(" hash_ini %d times, size %d: %g sec" % (n, len(map), time() - t0))
+
+
 # this lookup no longer initializes, find will now do a hash lookup
-def hash_key(k,n=1000):
-  t0 = time();
+def hash_key(k, n=1000):
+  t0 = time()
   vwh = vw.hash(map)
-  for i in xrange(n):
+  for i in range(n):
     r = vwh.find(p1=k)
-  print ' hash_key %d times, key %d -> %d: %g sec' % (n, k, r, time() - t0)
+  print(" hash_key %d times, key %d -> %d: %g sec" % (n, k, r, time() - t0))
+
 
 for n in (100, 1000, 10000, 100000):
   filldb(n)
-  find_raw(n/2, 1000000/n)
-  find_raw(n+1, 1000000/n)
-  find_ord(n/2, 1000000/n)
-  find_ord(n+1, 1000000/n)
-  hash_ini(100000/n)
-  hash_key(n/2, 10000)
-  hash_key(n+1, 10000)
+  find_raw(n / 2, 1000000 / n)
+  find_raw(n + 1, 1000000 / n)
+  find_ord(n / 2, 1000000 / n)
+  find_ord(n + 1, 1000000 / n)
+  hash_ini(100000 / n)
+  hash_key(n / 2, 10000)
+  hash_key(n + 1, 10000)
